@@ -1,8 +1,8 @@
 ﻿namespace CourseWorkIMUS;
 
-public class SomeEvent
+public class DataPackage
 {
     public DateTime GeneratedAt { get; set; }
     public DateTime StartedProcessingAt { get; set; }
-    public EventStatus Status { get; set; }
+    public DataPackageStatus Status { get; set; }
 }

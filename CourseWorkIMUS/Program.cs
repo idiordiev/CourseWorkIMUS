@@ -10,16 +10,16 @@ internal class Program
     private const int GenerationIntervalMilliseconds = 150;
     private const int ProcessingTimeMilliseconds = 130;
 
-    private static readonly Channel<SomeEvent> Queue = Channel.CreateBounded<SomeEvent>(
+    private static readonly Channel<DataPackage> Queue = Channel.CreateBounded<DataPackage>(
         new BoundedChannelOptions(QueueSize)
         {
             FullMode = BoundedChannelFullMode.DropWrite
-        }, someEvent =>
+        }, dataPackage =>
         {
-            someEvent.Status = EventStatus.Rejected;
+            dataPackage.Status = DataPackageStatus.Rejected;
             Interlocked.Increment(ref _rejected);
         });
-    private static readonly ConcurrentBag<SomeEvent> ProcessedEvents = [];
+    private static readonly ConcurrentBag<DataPackage> ProcessedEvents = [];
 
     private static int _generated;
     private static int _rejected;
@@ -55,10 +55,10 @@ internal class Program
         var totalProcessed = ProcessedEvents.Count;
         Console.WriteLine($"Processed through both channels {totalProcessed}");
         
-        var processedByMain = ProcessedEvents.Count(x => x.Status == EventStatus.ProcessedByMainChannel);
+        var processedByMain = ProcessedEvents.Count(x => x.Status == DataPackageStatus.ProcessedByMainChannel);
         Console.WriteLine($"Processed through main channel {processedByMain}");
         
-        var processedByReserve = ProcessedEvents.Count(x => x.Status == EventStatus.ProcessedByReserveChannel);
+        var processedByReserve = ProcessedEvents.Count(x => x.Status == DataPackageStatus.ProcessedByReserveChannel);
         Console.WriteLine($"Processed through reserve channel {processedByReserve}");
         
         var averageWaitingTimeMs = ProcessedEvents
@@ -74,15 +74,15 @@ internal class Program
         while (await timer.WaitForNextTickAsync() && i < TotalEvents)
         {
             i++;
-            var someEvent = new SomeEvent
+            var dataPackage = new DataPackage
             {
-                Status = EventStatus.Generated,
+                Status = DataPackageStatus.Generated,
                 GeneratedAt = DateTime.UtcNow
             };
             
             Interlocked.Increment(ref _generated);
             
-            await Queue.Writer.WriteAsync(someEvent);
+            await Queue.Writer.WriteAsync(dataPackage);
         }
         
         Queue.Writer.Complete();
@@ -96,18 +96,18 @@ internal class Program
             
             if (_mainChannelTask.IsCompleted)
             {
-                _mainChannelTask = ProcessItemAsync(item, EventStatus.ProcessedByMainChannel);
+                _mainChannelTask = ProcessItemAsync(item, DataPackageStatus.ProcessedByMainChannel);
             }
             else if (_reserveChannelTask.IsCompleted)
             {
-                _reserveChannelTask = ProcessItemAsync(item, EventStatus.ProcessedByReserveChannel);
+                _reserveChannelTask = ProcessItemAsync(item, DataPackageStatus.ProcessedByReserveChannel);
             }
         }
         
         await Task.WhenAll(_mainChannelTask, _reserveChannelTask);
     }
     
-    private static async Task ProcessItemAsync(SomeEvent item, EventStatus status)
+    private static async Task ProcessItemAsync(DataPackage item, DataPackageStatus status)
     {
         item.StartedProcessingAt = DateTime.UtcNow;
         item.Status = status;

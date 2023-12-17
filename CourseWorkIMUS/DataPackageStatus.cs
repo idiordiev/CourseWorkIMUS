@@ -1,6 +1,6 @@
 ﻿namespace CourseWorkIMUS;
 
-public enum EventStatus
+public enum DataPackageStatus
 {
     Generated,
     ProcessedByMainChannel,
